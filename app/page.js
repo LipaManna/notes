@@ -1,11 +1,11 @@
-import Image from "next/image";
+
 import connectDB from "@/lib/db";
 import Notes from "@/components/Notes";
 import Note from "@/models/Note";
 
 async function getNotes() {
   await connectDB();
-  const notes = await Note.find({}).sort({ createdAt: -1 }).lean();
+  const notes = (await Note?.find({}).sort({ createdAt: -1 }).lean()) || [];
   return notes.map((note) => ({
     ...note,
     _id: note._id.toString()

@@ -29,7 +29,7 @@ NoteSchema.pre("save", function () {
     this.updatedAt = Date.now();
 })
 
-const Note = mongoose.models.Note 
+const Note = mongoose.models.Note || mongoose.model("Note", NoteSchema);
 export default Note;
 
 

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
 const Notes = ({ initialNotes }) => {
@@ -8,14 +9,18 @@ const Notes = ({ initialNotes }) => {
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("");
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
 
-  const createNote = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !content.trim() || !author.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/api/notes`, {
-        method: "POST",
+      const url = editingId ? `${BASE_URL}/api/notes/${editingId}` : `${BASE_URL}/api/notes`;
+      const method = editingId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -23,21 +28,52 @@ const Notes = ({ initialNotes }) => {
       });
       const result = await res.json();
       if (result.success) {
-        setNotes([result.data, ...notes]);
+        if (editingId) {
+          setNotes(notes.map((n) => (n._id === editingId ? result.data : n)));
+          toast.success("Note updated successfully");
+        } else {
+          setNotes([result.data, ...notes]);
+          toast.success("Note added successfully");
+        }
         setTitle("");
         setContent("");
         setAuthor("");
+        setEditingId(null);
         setLoading(false);
       }
     } catch (error) {
-      console.log(error);
+      toast.error("Something went wrong")
       setLoading(false);
     }
   };
 
+  const handleEdit = (note) => {
+    setEditingId(note._id);
+    setTitle(note.title);
+    setContent(note.content);
+    setAuthor(note.author);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const handleDelete = async (id) => {
+    try {
+      const res = await fetch(`${BASE_URL}/api/notes/${id}`, {
+        method: "DELETE",
+      });
+      const result = await res.json();
+      if (result?.success) {
+        setNotes(notes.filter((note) => note._id !== id));
+        return toast.success(result.message);
+      }
+      return toast.error(result.error);
+    } catch (error) {
+      toast.error("Something went wrong");
+    }
+  }
+
+
   return (
     <div className="space-y-6">
-      <h2>Add New Note</h2>
+      <h2>{editingId ? "Edit Note" : "Add New Note"}</h2>
       <form
         action=""
         className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto"
@@ -69,26 +105,43 @@ const Notes = ({ initialNotes }) => {
         <button
           type="submit"
           className="px-4 py-2 bg-blue-500 text-white rounded-md cursor-pointer"
-          onClick={createNote}
+          onClick={handleSubmit}
         >
-          {loading ? "Adding..." : "Add Note"}
+          {loading ? (editingId ? "Updating..." : "Adding...") : (editingId ? "Update Note" : "Add Note")}
         </button>
+        {editingId && (
+          <button
+            type="button"
+            className="ml-2 px-4 py-2 bg-gray-500 text-white rounded-md cursor-pointer"
+            onClick={() => {
+              setEditingId(null);
+              setTitle("");
+              setContent("");
+              setAuthor("");
+            }}
+          >
+            Cancel
+          </button>
+        )}
       </form>
       <div className="space-y-4">
         <h2 className="text-2xl font-bold">Your Notes ({notes?.length})</h2>
         {notes.length === 0 ? (
           <p className="text-center text-gray-500">No notes found</p>
         ) : (
-          notes.map((note) => (
-            <div key={note._id} className="bg-white p-6 rounded-lg shadow-md">
-              <h3 className="text-xl font-bold">{note.title}</h3>
+          notes?.map((note) => (
+            <div key={note._id} className="bg-white p-6 rounded-lg shadow-md hover:bg-gray-100 transition-colors">
+              <h3 className="text-xl font-bold text-gray-800">{note.title}</h3>
               <p className="text-gray-600">{note.content}</p>
               <p className="text-gray-500">{note.author}</p>
               <div className="flex gap-2">
-                <button className="px-4 py-2 bg-blue-500 text-white rounded-md cursor-pointer">
+                <button
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md cursor-pointer"
+                  onClick={() => handleEdit(note)}
+                >
                   Edit
                 </button>
-                <button className="px-4 py-2 bg-red-500 text-white rounded-md cursor-pointer">
+                <button className="px-4 py-2 bg-red-500 text-white rounded-md cursor-pointer" onClick={() => handleDelete(note._id)}>
                   Delete
                 </button>
               </div>
