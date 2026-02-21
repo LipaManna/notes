@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import SearchBox from "./SearchBox";
 import toast from "react-hot-toast";
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL;
@@ -10,13 +11,17 @@ const Notes = ({ initialNotes }) => {
   const [author, setAuthor] = useState("");
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [search, setSearch] = useState("");
+  const [filteredNotes, setFilterNotes] = useState(notes);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!title.trim() || !content.trim() || !author.trim()) return;
     setLoading(true);
     try {
-      const url = editingId ? `${BASE_URL}/api/notes/${editingId}` : `${BASE_URL}/api/notes`;
+      const url = editingId
+        ? `${BASE_URL}/api/notes/${editingId}`
+        : `${BASE_URL}/api/notes`;
       const method = editingId ? "PUT" : "POST";
 
       const res = await fetch(url, {
@@ -42,7 +47,7 @@ const Notes = ({ initialNotes }) => {
         setLoading(false);
       }
     } catch (error) {
-      toast.error("Something went wrong")
+      toast.error("Something went wrong");
       setLoading(false);
     }
   };
@@ -68,12 +73,26 @@ const Notes = ({ initialNotes }) => {
     } catch (error) {
       toast.error("Something went wrong");
     }
-  }
+  };
 
+  useEffect(() => {
+    if (search === "") {
+      setFilterNotes(notes);
+    } else {
+      const lowerSearch = search.toLowerCase();
+      const filtered = notes.filter(
+        (note) =>
+          note.title.toLowerCase().includes(lowerSearch) ||
+          note.content.toLowerCase().includes(lowerSearch),
+      );
+      setFilterNotes(filtered);
+    }
+  }, [search, notes]);
 
   return (
     <div className="space-y-6">
       <h2>{editingId ? "Edit Note" : "Add New Note"}</h2>
+      <SearchBox setSearch={setSearch} search={search} />
       <form
         action=""
         className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto"
@@ -107,7 +126,13 @@ const Notes = ({ initialNotes }) => {
           className="px-4 py-2 bg-blue-500 text-white rounded-md cursor-pointer"
           onClick={handleSubmit}
         >
-          {loading ? (editingId ? "Updating..." : "Adding...") : (editingId ? "Update Note" : "Add Note")}
+          {loading
+            ? editingId
+              ? "Updating..."
+              : "Adding..."
+            : editingId
+              ? "Update Note"
+              : "Add Note"}
         </button>
         {editingId && (
           <button
@@ -125,12 +150,17 @@ const Notes = ({ initialNotes }) => {
         )}
       </form>
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Your Notes ({notes?.length})</h2>
-        {notes.length === 0 ? (
+        <h2 className="text-2xl font-bold">
+          Your Notes ({filteredNotes?.length})
+        </h2>
+        {filteredNotes.length === 0 ? (
           <p className="text-center text-gray-500">No notes found</p>
         ) : (
-          notes?.map((note) => (
-            <div key={note._id} className="bg-white p-6 rounded-lg shadow-md hover:bg-gray-100 transition-colors">
+          filteredNotes?.map((note) => (
+            <div
+              key={note._id}
+              className="bg-white p-6 rounded-lg shadow-md hover:bg-gray-100 transition-colors"
+            >
               <h3 className="text-xl font-bold text-gray-800">{note.title}</h3>
               <p className="text-gray-600">{note.content}</p>
               <p className="text-gray-500">{note.author}</p>
@@ -141,7 +171,10 @@ const Notes = ({ initialNotes }) => {
                 >
                   Edit
                 </button>
-                <button className="px-4 py-2 bg-red-500 text-white rounded-md cursor-pointer" onClick={() => handleDelete(note._id)}>
+                <button
+                  className="px-4 py-2 bg-red-500 text-white rounded-md cursor-pointer"
+                  onClick={() => handleDelete(note._id)}
+                >
                   Delete
                 </button>
               </div>
